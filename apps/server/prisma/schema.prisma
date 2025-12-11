@@ -1,0 +1,131 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+// apps/server/prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// --- ENUMS ---
+enum Role {
+  ADMIN
+  JEFE_TALLER
+  MECANICO
+}
+
+// --- USUARIOS Y ROLES ---
+model User {
+  id           String  @id @default(uuid())
+  email        String  @unique
+  password     String
+  firstName    String
+  lastName     String
+  role         Role
+  isActive     Boolean @default(false)
+
+  // Jerarquía (Auto-relación)
+  supervisorId String?
+  supervisor   User?   @relation("UserHierarchy", fields: [supervisorId], references: [id])
+  subordinates User[]  @relation("UserHierarchy")
+
+  // Relaciones
+  submissions  Submission[] // Reportes creados por este usuario
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+// --- CATALOGOS NORMALIZADOS ---
+
+// 1. Dueño del vehículo
+model Company {
+  id           Int      @id @default(autoincrement())
+  name         String
+  rut          String?  // Opcional
+  contactEmail String?  // Opcional
+
+  vehicles     Vehicle[]
+
+  createdAt    DateTime @default(now())
+}
+
+// 2. Ficha técnica del modelo
+model VehicleModel {
+  id        Int    @id @default(autoincrement())
+  brand     String // Ej: "Mitsubishi"
+  modelName String // Ej: "L200 Work CR"
+  traction  String // "4x2", "4x4"
+  fuelType  String // "Diesel", "Bencina"
+
+  vehicles  Vehicle[]
+}
+
+// 3. El Vehículo real (La instancia)
+model Vehicle {
+  id             String @id @default(uuid())
+  patente        String @unique // Llave única, pero no primaria (mejor práctica)
+  year           Int?
+  color          String?
+  currentMileage Int    @default(0)
+
+  // Relaciones
+  companyId      Int
+  company        Company      @relation(fields: [companyId], references: [id])
+
+  modelId        Int
+  model          VehicleModel @relation(fields: [modelId], references: [id])
+
+  submissions    Submission[]
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+// --- FORMULARIOS Y REPORTES ---
+
+model FormType {
+  id           Int    @id @default(autoincrement())
+  name         String?
+  allowedRoles Role[] // Array de enums (Postgres lo permite nativamente)
+  schema       Json   // Esquema del formulario (Jsonb)
+
+  submissions  Submission[]
+}
+
+model Submission {
+  id         String   @id @default(uuid())
+  
+  // Relaciones
+  authorId   String
+  author     User     @relation(fields: [authorId], references: [id])
+
+  formTypeId Int
+  formType   FormType @relation(fields: [formTypeId], references: [id])
+
+  vehicleId  String
+  vehicle    Vehicle  @relation(fields: [vehicleId], references: [id])
+
+  // Datos del reporte
+  mileageAtService Int
+  formData         Json
+  submittedAt      DateTime @default(now())
+
+  images     Image[]
+}
+
+model Image {
+  id           String     @id @default(uuid())
+  url          String
+  tag          String?    // Ej: "Patente", "Tablero", "Daño lateral"
+
+  submissionId String
+  submission   Submission @relation(fields: [submissionId], references: [id])
+}

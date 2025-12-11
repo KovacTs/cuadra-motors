@@ -1,0 +1,17 @@
+{
+  "name": "cuadra-motors",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev -w @taller/server\" \"npm run dev -w @taller/client\"",
+    "build": "npm run build -w @taller/shared && npm run build -w @taller/server && npm run build -w @taller/client"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "typescript": "^5.3.3"
+  }
+}
